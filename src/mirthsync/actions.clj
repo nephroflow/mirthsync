@@ -92,3 +92,16 @@
    (str "Uploading from " (local-path app-conf) " to " (rest-path api))
    (local-locs app-conf)
    upload-node))
+
+(defn deploy
+  "Serializes all xml found at the api rest-path to the filesystem using the
+  supplied config. Returns a (potentially) updated app-conf with
+  details about the fetched apis."
+  [{:as app-conf
+    {:keys [post-path push-params after-push] :as api} :api}]
+
+  (let [params (log/spyf :trace "Push params: %s" (push-params app-conf))
+        result (if (post-path api)
+                 (mhttp/post-xml app-conf params)
+                 (mhttp/put-xml app-conf params))]
+    (after-push app-conf result)))

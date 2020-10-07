@@ -42,6 +42,11 @@
    "removedCodeTemplateIds" "<set/>"
    "override" (if force "true" "false")})
 
+(defn deploy-params
+  "Deploy params"
+  [{:keys [app]}]
+  {"returnErrors" "true"})
+
 (defn override-params
   "Override if force is specified"
   [{:keys [force]}]
@@ -206,6 +211,7 @@
           :pre-node-action identity     ; transform app-conf before processing
           :after-push true-200          ; process result of item push
           :preprocess identity          ; preprocess app-conf before any other work
+          :only-query (constantly nil)
           }
          api))
 
@@ -213,6 +219,12 @@
   "Takes an api and builds a _bulkUpdate from the rest-path"
   [{:keys [rest-path] :as api}]
   (str (rest-path api) "/_bulkUpdate"))
+
+(defn post-path-deploy
+  "Takes an api and builds a _bulkUpdate from the rest-path"
+  [{:keys [rest-path] :as api}]
+  (str (rest-path api) "/_redeployAll"))
+
 
 (def apis
   [(make-api
@@ -224,7 +236,7 @@
      :file-path (file-path "ConfigurationMap.xml")
      :api-files (partial mf/only-named-xml-files-seq 1 "ConfigurationMap.xml")
      :after-push null-204})
-   
+
    (make-api
     {:rest-path (constantly "/server/globalScripts")
      :local-path (local-path "GlobalScripts")
@@ -266,16 +278,17 @@
      :push-params override-params})
 
    (make-api
-    {:rest-path (constantly "/channelgroups")
-     :local-path (local-path "Channels")
-     :find-elements #(or (zx/xml-> % :list :channelGroup) ; from server
-                         (zx/xml-> % :channelGroup)) ; from filesystem
-     :file-path (file-path (str File/separator "index.xml"))
-     :api-files (partial mf/only-named-xml-files-seq 2 "index")
-     :post-path post-path
-     :push-params group-push-params
-     :preprocess (partial mact/fetch-and-pre-assoc :server-groups :set)
-     :pre-node-action (partial pre-node-action :server-groups :set :channelGroup)})
+     {:rest-path     (constantly "/channelgroups")
+      :local-path    (local-path "Channels")
+      :find-elements #(or (zx/xml-> % :list :channelGroup)  ; from server
+                          (zx/xml-> % :channelGroup))       ; from filesystem
+      :file-path     (file-path (str File/separator "index.xml"))
+      :api-files     (partial mf/only-named-xml-files-seq 2 "index")
+      :post-path     post-path
+      :push-params   group-push-params
+      :preprocess    (partial mact/fetch-and-pre-assoc :server-groups :set)
+      ;:pre-node-action (partial pre-node-action :server-groups :set :channelGroup)
+      })
 
    (make-api
     {:rest-path (constantly "/channels")
@@ -283,7 +296,20 @@
      :find-elements #(zx/xml-> % :list :channel)
      :file-path channel-file-path
      :api-files (partial mf/without-named-xml-files-seq 2 "index")
-     :push-params override-params})])
+     :push-params override-params})
+])
+
+(def deploy-apis [(make-api
+                   {:rest-path (constantly "/channels")
+                    :local-path (constantly nil)
+                    :find-elements (constantly nil)
+                    :find-id (constantly nil)
+                    :push-params deploy-params
+                    :find-name (constantly nil)
+                    :post-path post-path-deploy
+                    :only-query  (constantly true)
+                    :after-push null-204
+                    })])
 
 (defn apis-action
   "Iterates through the apis calling action on app-conf. If an api

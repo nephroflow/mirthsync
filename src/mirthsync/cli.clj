@@ -67,7 +67,8 @@
                  ""
                  "Actions:"
                  "  push     Push filesystem code to server"
-                 "  pull     Pull server code to filesystem"])))
+                 "  pull     Pull server code to filesystem"
+                 "  deploy   Deploy all channels"])))
 
 (defn config
   "Parse the CLI arguments and construct a map representing selected
@@ -78,8 +79,8 @@
 
         args-valid? (or (:help config)
                         (and (= 1 (count (:arguments config)))
-                             (#{"pull" "push"} (first (:arguments config)))))
-        
+                             (#{"pull" "deploy" "push"} (first (:arguments config)))))
+
         config (-> config
 
                    ;; pull options and first arg into top level for
@@ -87,7 +88,7 @@
                    (into (:options config))
                    (dissoc :options)
                    (assoc :action (first (:arguments config)))
-                   
+
                    ;; Set up our exit code
                    (assoc :exit-code
                           (if (or (:errors config)

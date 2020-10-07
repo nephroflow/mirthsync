@@ -17,14 +17,22 @@
   [{:keys [server username password action] :as app-conf}]
 
   (log/info (str "Authenticating to server at " server " as " username))
-  (let [action   ({"push" act/upload, "pull" act/download} action)
+  (if (= action "deploy")
+    ((log/info "Deploying all channels")
+     (http/with-authentication
+                     app-conf
+                     #(-> app-conf
+                          (api/apis-action api/deploy-apis act/deploy)))
+       (log/info "Finished!")
+       (log/spy :trace app-conf))
+      (let [action   ({"push" act/upload, "pull" act/download} action)
         app-conf (http/with-authentication
                    app-conf
                    #(-> app-conf
                         (api/apis-action api/apis api/preprocess)
-                        (api/apis-action api/apis action)))]    
+                        (api/apis-action api/apis action)))]
     (log/info "Finished!")
-    (log/spy :trace app-conf)))
+    (log/spy :trace app-conf))))
 
 
 (defn exit-prep

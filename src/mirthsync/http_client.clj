@@ -22,8 +22,13 @@
   value] vectors. Name should be a string and value should be an xml
   string."
   [{:keys [server ignore-cert-warnings]
-    {:keys [post-path] :as api} :api}
+    {:keys [post-path only-query] :as api} :api}
    params]
+  (if (some? (only-query api))
+  (client/post (str server (post-path api))
+               {:insecure? ignore-cert-warnings
+                :query-params params
+                :content-type "application/xml"})
   (client/post (str server (post-path api))
                {:insecure? ignore-cert-warnings
                 :multipart (map (fn
@@ -32,7 +37,7 @@
                                    :content v
                                    :mime-type "application/xml"
                                    :encoding "UTF-8"})
-                                params)}))
+                                params)})))
 
 (defn with-authentication
   "Binds a cookie store to keep auth cookies, authenticates using the
